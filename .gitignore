@@ -167,3 +167,4 @@ temp/
 *.zip
 *.png
 !video_remover_new_ui.png
+!demo.gif
