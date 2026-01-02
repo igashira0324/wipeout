@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="動画の背景を自動で透過処理するWebアプリケーション">
+    <title>Video Background Remover - 動画背景透過ツール</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">
+                <span class="title-icon">🎬</span>
+                Video Background Remover
+            </h1>
+            <p class="subtitle">AIで動画の背景を自動透過処理</p>
+        </header>
+
+        {% if not ffmpeg_available %}
+        <div class="alert alert-error">
+            <span class="alert-icon">⚠️</span>
+            <div>
+                <strong>FFmpegが見つかりません</strong>
+                <p>このアプリケーションにはFFmpegが必要です。システムにFFmpegをインストールしてください。</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not rembg_available %}
+        <div class="alert alert-error">
+            <span class="alert-icon">⚠️</span>
+            <div>
+                <strong>rembgがインストールされていません</strong>
+                <p>pip install rembg[cpu] でインストールしてください。</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <main class="main-content">
+            <!-- Model Selection Section -->
+            <section class="model-selection" id="modelSelectionSection">
+                <h2 class="section-title">AIモデルを選択</h2>
+                <div class="model-grid">
+                    <label class="model-card active">
+                        <input type="radio" name="model" value="u2net_human_seg" checked>
+                        <div class="model-card-content">
+                            <span class="model-icon">👤</span>
+                            <div class="model-info">
+                                <span class="model-name">u2net_human_seg</span>
+                                <span class="model-desc">人物向け・高速標準精度</span>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="model-card">
+                        <input type="radio" name="model" value="birefnet-general">
+                        <div class="model-card-content">
+                            <span class="model-icon">✨</span>
+                            <div class="model-info">
+                                <span class="model-name">birefnet-general</span>
+                                <span class="model-desc">汎用・最高精度（GPU推奨）</span>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="model-card">
+                        <input type="radio" name="model" value="birefnet-portrait">
+                        <div class="model-card-content">
+                            <span class="model-icon">🎀</span>
+                            <div class="model-info">
+                                <span class="model-name">birefnet-portrait</span>
+                                <span class="model-desc">人物特化・最高精度（GPU推奨）</span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Upload Section -->
+            <section class="upload-section" id="uploadSection">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <h2>動画をアップロード</h2>
+                    <p>ドラッグ＆ドロップ または クリックしてファイルを選択</p>
+                    <p class="upload-hint">対応形式: MP4, MOV, WebM（最大100MB）</p>
+                    <input type="file" id="fileInput" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
+                        hidden>
+                </div>
+                <div class="selected-file" id="selectedFile" style="display: none;">
+                    <span class="file-icon">🎥</span>
+                    <span class="file-name" id="fileName"></span>
+                    <button class="btn-clear" id="clearFile">✕</button>
+                </div>
+                <button class="btn-primary" id="startProcess" disabled>
+                    <span class="btn-icon">✨</span>
+                    背景透過処理を開始
+                </button>
+            </section>
+
+            <!-- Progress Section -->
+            <section class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-header">
+                    <div class="progress-header-left">
+                        <h2>処理中...</h2>
+                        <span class="device-badge" id="deviceBadge" style="display: none;">GPU</span>
+                    </div>
+                    <span class="status-badge" id="statusBadge">準備中</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-info">
+                    <div class="progress-info-left">
+                        <span id="progressText">0%</span>
+                        <span id="frameInfo"></span>
+                    </div>
+                    <div class="progress-info-right" id="etaContainer" style="display: none;">
+                        <span class="eta-label">残り約</span>
+                        <span id="etaText">--:--</span>
+                    </div>
+                </div>
+                <div class="processing-steps">
+                    <div class="step" id="step1">
+                        <span class="step-icon">🎞️</span>
+                        <span class="step-text">フレーム分解</span>
+                    </div>
+                    <div class="step" id="step2">
+                        <span class="step-icon">🪄</span>
+                        <span class="step-text">背景透過処理</span>
+                    </div>
+                    <div class="step" id="step3">
+                        <span class="step-icon">📹</span>
+                        <span class="step-text">WebM生成</span>
+                    </div>
+                    <div class="step" id="step4">
+                        <span class="step-icon">🖼️</span>
+                        <span class="step-text">GIF生成</span>
+                    </div>
+                </div>
+
+                <!-- Resource Monitor -->
+                <div class="resource-monitor" id="resourceMonitor" style="display: none;">
+                    <div class="resource-item">
+                        <span class="resource-label">CPU</span>
+                        <div class="resource-bar-bg">
+                            <div class="resource-bar" id="cpuBar" style="width: 0%"></div>
+                        </div>
+                        <span class="resource-value" id="cpuValue">0%</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">RAM</span>
+                        <div class="resource-bar-bg">
+                            <div class="resource-bar" id="ramBar" style="width: 0%"></div>
+                        </div>
+                        <span class="resource-value" id="ramValue">0%</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-label">VRAM</span>
+                        <div class="resource-bar-bg">
+                            <div class="resource-bar" id="vramBar" style="width: 0%"></div>
+                        </div>
+                        <span class="resource-value" id="vramValue">0%</span>
+                    </div>
+                </div>
+
+                <div class="progress-footer">
+                    <button class="btn-cancel" id="cancelProcess">
+                        <span class="btn-icon">⏹️</span>
+                        キャンセル
+                    </button>
+                </div>
+            </section>
+
+            <!-- Result Section -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="result-header">
+                    <h2>🎉 処理完了!</h2>
+                    <p>背景透過処理が完了しました。ダウンロードしてください。</p>
+                </div>
+                <!-- Job Summary -->
+                <div class="summary-card" id="jobSummary">
+                    <div class="summary-item">
+                        <span class="summary-label">解像度</span>
+                        <span class="summary-value" id="summaryResolution">--</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">長さ</span>
+                        <span class="summary-value" id="summaryDuration">--</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">処理時間</span>
+                        <span class="summary-value" id="summaryTime">--</span>
+                    </div>
+                </div>
+                <div class="download-buttons">
+                    <a class="btn-download webm" id="downloadWebm" href="#">
+                        <span class="download-icon">📹</span>
+                        <span class="download-text">
+                            <strong>WebM</strong>
+                            <small>高品質・Web向け</small>
+                        </span>
+                    </a>
+                    <a class="btn-download gif" id="downloadGif" href="#">
+                        <span class="download-icon">🖼️</span>
+                        <span class="download-text">
+                            <strong>GIF</strong>
+                            <small>最大互換性</small>
+                        </span>
+                    </a>
+                    <a class="btn-download zip" id="downloadZip" href="#">
+                        <span class="download-icon">📦</span>
+                        <span class="download-text">
+                            <strong>ZIPでまとめて</strong>
+                            <small>両形式を一括ダウンロード</small>
+                        </span>
+                    </a>
+                </div>
+                <button class="btn-secondary" id="processAnother">
+                    <span class="btn-icon">🔄</span>
+                    別の動画を処理する
+                </button>
+            </section>
+
+            <!-- Error Section -->
+            <section class="error-section" id="errorSection" style="display: none;">
+                <div class="error-icon">❌</div>
+                <h2>エラーが発生しました</h2>
+                <p class="error-message" id="errorMessage"></p>
+                <button class="btn-secondary" id="retryBtn">
+                    <span class="btn-icon">🔄</span>
+                    もう一度試す
+                </button>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Powered by rembg & FFmpeg</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+
+</html>
