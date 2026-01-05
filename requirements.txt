@@ -2,3 +2,18 @@ flask>=3.0.0
 rembg[gpu]>=2.0.50
 pillow>=10.0.0
 numpy>=1.24.0
+realesrgan
+basicsr
+facexlib
+gfpgan
+opencv-python
+opencv-contrib-python
+tqdm
+mediapipe  # Optional but often useful for face detection
+psutil
+ffmpeg-python
+requests
+onnxruntime-gpu
+torch
+torchvision
+torchaudio --index-url https://download.pytorch.org/whl/cu118

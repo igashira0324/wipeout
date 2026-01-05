@@ -13,11 +13,10 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1 class="title">
-                <span class="title-icon">🎬</span>
-                Video Background Remover
-            </h1>
-            <p class="subtitle">AIで動画の背景を自動透過処理</p>
+            <div class="header-content">
+                <h1>Image & Video Background Remover</h1>
+                <p>AIで画像および動画の背景を自動透過処理</p>
+            </div>
         </header>
 
         {% if not ffmpeg_available %}
@@ -41,51 +40,178 @@
         {% endif %}
 
         <main class="main-content">
-            <!-- Model Selection Section -->
-            <section class="model-selection" id="modelSelectionSection">
-                <h2 class="section-title">AIモデルを選択</h2>
-                <div class="model-grid">
-                    <label class="model-card active">
-                        <input type="radio" name="model" value="u2net_human_seg" checked>
-                        <div class="model-card-content">
-                            <span class="model-icon">👤</span>
-                            <div class="model-info">
-                                <span class="model-name">u2net_human_seg</span>
-                                <span class="model-desc">人物向け・高速標準精度</span>
+            <!-- Mode Tabs -->
+            <div class="mode-tabs">
+                <button class="tab-btn active" data-mode="transparent">
+                    <span class="tab-icon">🎬</span>
+                    背景透過
+                </button>
+                <button class="tab-btn" data-mode="upscale">
+                    <span class="tab-icon">✨</span>
+                    高画質化
+                </button>
+            </div>
+
+            <!-- Background Removal Settings (Tab 1) -->
+            <div id="transparentSettings" class="mode-panel active">
+                <!-- Model Selection Section -->
+                <section class="model-selection-section" id="modelSelectionSection">
+                    <h2 class="section-title section-title-inline">
+                        AIモデルを選択
+                        <span class="section-subtitle-inline">（初音ミクのような髪の長い人物の場合は、birefnet-general推奨）</span>
+                    </h2>
+                    <div class="model-grid">
+                        <label class="model-card active">
+                            <input type="radio" name="model" value="u2net_human_seg" checked>
+                            <div class="model-card-content">
+                                <span class="model-icon">👤</span>
+                                <div class="model-info">
+                                    <span class="model-name">u2net_human_seg</span>
+                                    <span class="model-desc">人物向け・高速標準精度</span>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="model-card">
+                            <input type="radio" name="model" value="birefnet-general">
+                            <div class="model-card-content">
+                                <span class="model-icon">✨</span>
+                                <div class="model-info">
+                                    <span class="model-name">birefnet-general</span>
+                                    <span class="model-desc">汎用・最高精度（GPU推奨）</span>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="model-card">
+                            <input type="radio" name="model" value="birefnet-portrait">
+                            <div class="model-card-content">
+                                <span class="model-icon">🎀</span>
+                                <div class="model-info">
+                                    <span class="model-name">birefnet-portrait</span>
+                                    <span class="model-desc">人物特化・最高精度（GPU推奨）</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Background Color Options Section -->
+                <section class="bg-color-section" id="bgColorSection">
+                    <h2 class="section-title">背景色を選択</h2>
+                    <div class="bg-options">
+                        <label class="bg-option active">
+                            <input type="radio" name="bgColor" value="transparent" checked>
+                            <div class="bg-option-content">
+                                <div class="bg-preview transparent-preview"></div>
+                                <span>透明</span>
+                            </div>
+                        </label>
+                        <label class="bg-option">
+                            <input type="radio" name="bgColor" value="#000000">
+                            <div class="bg-option-content">
+                                <div class="bg-preview" style="background: #000000;"></div>
+                                <span>黒</span>
+                            </div>
+                        </label>
+                        <label class="bg-option">
+                            <input type="radio" name="bgColor" value="#FFFFFF">
+                            <div class="bg-option-content">
+                                <div class="bg-preview"
+                                    style="background: #FFFFFF; border: 1px solid rgba(255,255,255,0.3);"></div>
+                                <span>白</span>
+                            </div>
+                        </label>
+                        <label class="bg-option">
+                            <input type="radio" name="bgColor" value="custom">
+                            <div class="bg-option-content">
+                                <div class="bg-preview custom-preview" id="customColorPreview"
+                                    style="background: #00FF00;">
+                                </div>
+                                <span>カスタム</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="custom-color-picker" id="customColorPicker" style="display: none;">
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="colorPicker" value="#00FF00">
+                            <span class="color-picker-hint">← クリックして色を選択</span>
+                        </div>
+                        <input type="text" id="hexInput" value="#00FF00" placeholder="#RRGGBB" maxlength="7">
+                    </div>
+                </section>
+            </div>
+
+            <!-- Upscale Settings (Tab 2) -->
+            <div id="upscaleSettings" class="mode-panel">
+                <!-- Upscale Model Selection -->
+                <section class="model-selection-section">
+                    <h2 class="section-title">高画質化モデルを選択</h2>
+                    <div class="model-grid">
+                        <label class="model-card active">
+                            <input type="radio" name="upscaleModel" value="RealESRGAN_x4plus" checked>
+                            <div class="model-card-content">
+                                <span class="model-icon">📸</span>
+                                <div class="model-info">
+                                    <span class="model-name">RealESRGAN_x4plus</span>
+                                    <span class="model-desc">実写動画・画像向け（標準）</span>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="model-card">
+                            <input type="radio" name="upscaleModel" value="RealESRGAN_x4plus_anime_6B">
+                            <div class="model-card-content">
+                                <span class="model-icon">🎨</span>
+                                <div class="model-info">
+                                    <span class="model-name">RealESRGAN_x4plus_anime</span>
+                                    <span class="model-desc">アニメ・イラスト向け</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Upscale Options -->
+                <section class="upscale-options-section">
+                    <div class="options-grid">
+                        <div class="option-group">
+                            <h2 class="section-title">拡大倍率</h2>
+                            <div class="scale-options">
+                                <label class="scale-item active">
+                                    <input type="radio" name="upscaleRatio" value="1" checked>
+                                    <span>x1</span>
+                                </label>
+                                <label class="scale-item">
+                                    <input type="radio" name="upscaleRatio" value="2">
+                                    <span>x2</span>
+                                </label>
+                                <label class="scale-item">
+                                    <input type="radio" name="upscaleRatio" value="4">
+                                    <span>x4</span>
+                                </label>
                             </div>
                         </div>
-                    </label>
-                    <label class="model-card">
-                        <input type="radio" name="model" value="birefnet-general">
-                        <div class="model-card-content">
-                            <span class="model-icon">✨</span>
-                            <div class="model-info">
-                                <span class="model-name">birefnet-general</span>
-                                <span class="model-desc">汎用・最高精度（GPU推奨）</span>
-                            </div>
+                        <div class="option-group">
+                            <h2 class="section-title">顔修復オプション</h2>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="faceEnhance">
+                                <span class="checkmark"></span>
+                                <span class="label-text">顔修復 (GFPGAN) を使用する</span>
+                            </label>
                         </div>
-                    </label>
-                    <label class="model-card">
-                        <input type="radio" name="model" value="birefnet-portrait">
-                        <div class="model-card-content">
-                            <span class="model-icon">🎀</span>
-                            <div class="model-info">
-                                <span class="model-name">birefnet-portrait</span>
-                                <span class="model-desc">人物特化・最高精度（GPU推奨）</span>
-                            </div>
-                        </div>
-                    </label>
-                </div>
-            </section>
+                    </div>
+                </section>
+            </div>
 
             <!-- Upload Section -->
             <section class="upload-section" id="uploadSection">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
-                    <h2>動画をアップロード</h2>
+                    <h2>動画・画像をアップロード</h2>
                     <p>ドラッグ＆ドロップ または クリックしてファイルを選択</p>
-                    <p class="upload-hint">対応形式: MP4, MOV, WebM（最大100MB）</p>
-                    <input type="file" id="fileInput" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
+                    <p class="upload-hint">動画: MP4, MOV, WebM（最大100MB）｜ 画像: PNG, JPG, WebP</p>
+                    <p class="upload-annotation">※背景「透過」時は WebM/WebP、背景色あり時は MP4/PNG または JPG で出力されます。常にGIFも生成されます。
+                    </p>
+                    <input type="file" id="fileInput"
+                        accept=".mp4,.mov,.webm,.png,.jpg,.jpeg,.webp,.gif,video/mp4,video/quicktime,video/webm,image/png,image/jpeg,image/webp,image/gif"
                         hidden>
                 </div>
                 <div class="selected-file" id="selectedFile" style="display: none;">
@@ -94,8 +220,8 @@
                     <button class="btn-clear" id="clearFile">✕</button>
                 </div>
                 <button class="btn-primary" id="startProcess" disabled>
-                    <span class="btn-icon">✨</span>
-                    背景透過処理を開始
+                    <span class="btn-icon">🚀</span>
+                    <span id="startBtnText">処理を開始</span>
                 </button>
             </section>
 
@@ -124,19 +250,19 @@
                 <div class="processing-steps">
                     <div class="step" id="step1">
                         <span class="step-icon">🎞️</span>
-                        <span class="step-text">フレーム分解</span>
+                        <span class="step-text" id="step1Text">フレーム分解</span>
                     </div>
                     <div class="step" id="step2">
                         <span class="step-icon">🪄</span>
-                        <span class="step-text">背景透過処理</span>
+                        <span class="step-text" id="step2Text">AI処理</span>
                     </div>
                     <div class="step" id="step3">
                         <span class="step-icon">📹</span>
-                        <span class="step-text">WebM生成</span>
+                        <span class="step-text" id="step3Text">動画生成</span>
                     </div>
                     <div class="step" id="step4">
-                        <span class="step-icon">🖼️</span>
-                        <span class="step-text">GIF生成</span>
+                        <span class="step-icon">✨</span>
+                        <span class="step-text" id="step4Text">完了準備</span>
                     </div>
                 </div>
 
@@ -194,6 +320,14 @@
                         <span class="summary-value" id="summaryTime">--</span>
                     </div>
                 </div>
+                <!-- Preview Area -->
+                <div class="preview-area" id="previewArea">
+                    <div class="preview-container preview-transparent" id="previewContainer">
+                        <img id="previewImage" src="" alt="Preview" style="display: none;">
+                        <video id="previewVideo" src="" autoplay loop muted playsinline style="display: none;"></video>
+                    </div>
+                    <p class="preview-label">* 透過結果プレビュー</p>
+                </div>
                 <div class="download-buttons">
                     <a class="btn-download webm" id="downloadWebm" href="#">
                         <span class="download-icon">📹</span>
@@ -223,6 +357,18 @@
                 </button>
             </section>
 
+            <!-- Preview Modal -->
+            <div class="modal" id="previewModal">
+                <div class="modal-overlay" id="modalOverlay"></div>
+                <div id="modalContent" class="modal-content">
+                    <button class="modal-close" id="modalClose">✕</button>
+                    <div class="modal-body preview-transparent">
+                        <img id="modalImage" src="" alt="Full Preview" style="display: none;">
+                        <video id="modalVideo" src="" autoplay loop muted playsinline style="display: none;"></video>
+                    </div>
+                </div>
+            </div>
+
             <!-- Error Section -->
             <section class="error-section" id="errorSection" style="display: none;">
                 <div class="error-icon">❌</div>
@@ -232,6 +378,30 @@
                     <span class="btn-icon">🔄</span>
                     もう一度試す
                 </button>
+            </section>
+
+            <!-- History Section -->
+            <section class="history-section" id="historySection">
+                <h2 class="section-title">処理履歴</h2>
+                <div class="history-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>タイプ</th>
+                                <th>モデル</th>
+                                <th>背景</th>
+                                <th>解像度</th>
+                                <th>入力</th>
+                                <th>出力</th>
+                                <th>処理時間</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <!-- History items will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
             </section>
         </main>
 

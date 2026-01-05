@@ -1,75 +1,63 @@
-# Video Background Remover
+# Video Background Remover & Upscaler
 
-AIを活用して動画の背景を自動で透過処理し、透過WebMおよび透過GIFを生成するWebアプリケーションです。最新の **BiRefNet** モデルをサポートし、人物や物体の境界線を非常に高精度に切り抜くことができます。
+AIを活用して動画や画像の背景を自動透過、または4倍の高画質化（超解像）を行うオールインワンWebアプリケーションです。最新の **BiRefNet** による背景除去と、**Real-ESRGAN** による強力な高画質化機能を備えています。
 
 ![Demo](demo.gif)
 
-*実行例: BiRefNetモデルを使用し、複雑な動作をする被写体でも高精度に背景のみを透過処理しています。*
+*実行例: 複雑な背景からの切り抜きと、アニメGIFの透明度を維持したままの4倍高画質化に対応。*
 
 ## 🌟 主な機能
 
-- **高精度な背景除去**: 標準的な `u2net` に加え、最先端の `BiRefNet` モデルを選択可能。
-- **GPU高速化**: NVIDIA RTX 3060 (CUDA/cuDNN) をフル活用した高速推論。
-- **透過フォーマット出力**: アルファチャンネル付き WebM および 透過 GIF の生成。
-- **リアルタイム進捗表示**: SSE（Server-Sent Events）による詳細な進捗状況と残り時間の目安表示。
-- **メモリ最適化**: GPU VRAMの蓄積を防ぐための自動クリーンアップ機能。
+### 1. 背景透過処理 (Background Removal)
+- **最高精度のモデル**: 標準的な `u2net` に加え、髪の毛まで繊細に切り抜く最先端の `BiRefNet` モデルを選択可能。
+- **柔軟な背景指定**: 透明背景だけでなく、合成用の黒・白・カスタム（クロマキー）色を自由に指定可能。
+- **フル透過出力**: アルファチャンネル付き WebM および透過映像を生成。
+
+### 2. 高画質化 (Super Resolution / Upscale)
+- **AI超解像**: 画像や動画を2倍、4倍に美しく拡大する `Real-ESRGAN` 搭載。
+- **顔修復機能**: `GFPGAN` と連携し、古い低画質動画の顔を驚くほど鮮明に復元。
+- **アニメ特化モデル**: アニメ動画・イラストに最適化された専用モデルを選択可能。
+
+### 3. 高度なGIFサポート (Advanced GIF Engine)
+- **透過の完全維持**: 透過情報を持つGIFを読み込み、透明度を維持したまま高画質化が可能。
+- **リアルタイム進捗**: アニメーションGIFの処理中も、動画と同様にフレーム単位での進捗表示とキャンセルが可能。
+
+### 4. 快適なUI/UX
+- **直感的なタブ切り替え**: 背景透過と高画質化をシームレスに切り替えて継続的に処理可能。
+- **リソースモニタ**: CPU, RAM, GPU(VRAM) の使用状況をリアルタイムで監視。
+- **安定したETA表示**: 過去の処理速度から残り時間を高精度に予測。
 
 ## 🛠 技術スタック
 
 | カテゴリ | 技術 / ライブラリ |
 | :--- | :--- |
 | **Backend** | Python 3.x, Flask |
-| **AI / ML** | rembg (BiRefNet, u2net), ONNXRuntime-GPU |
-| **Media Processing** | FFmpeg |
-| **Frontend** | Vanilla HTML5, CSS3, JavaScript (ES6+) |
-| **Acceleration** | NVIDIA CUDA 11.8+, cuDNN 9.x |
+| **Upscale** | Real-ESRGAN (x4plus, x4plus_anime), GFPGAN |
+| **BG Removal** | rembg (BiRefNet, u2net), ONNXRuntime-GPU |
+| **Media Engine**| FFmpeg, OpenCV, Pillow |
+| **Frontend** | Vanilla JavaScript (ES6+), CSS3 (Modern Glassmorphism) |
+| **Acceleration** | NVIDIA CUDA 11.x/12.x, cuDNN 9.x |
 
 ## 📊 システムフロー
 
-### 処理プロセス（フローチャート）
+### 統合処理プロセス
 
 ```mermaid
 graph TD
-    A[動画アップロード] --> B[FFmpeg: フレーム分解]
-    B --> C{AI背景除去}
-    C -->|GPU加速| D[rembg: BiRefNet/u2net]
-    D --> E[FFmpeg: 透過WebM生成]
-    E --> F[FFmpeg: 透過GIF生成]
-    F --> G[ダウンロード準備完了]
+    A[ファイルアップロード] --> B{モード選択}
+    B -->|背景透過| C[BiRefNet/u2net 推論]
+    B -->|高画質化| D[Real-ESRGAN/GFPGAN 推論]
     
-    subgraph Progress Tracking
-        D -.-> H[進捗更新 98%]
-        E -.-> I[進捗更新 1%]
-        F -.-> J[進捗更新 1%]
+    C --> E[透過パス保持]
+    D --> F[アルファチャンネル成分の個別拡大]
+    
+    E --> G[FFmpeg: 透過WebM/GIF生成]
+    F --> G
+    
+    subgraph Engine
+        C
+        D
     end
-```
-
-### シーケンス図
-
-```mermaid
-sequenceDiagram
-    participant User as ユーザー (Browser)
-    participant Flask as サーバー (Flask)
-    participant AI as AI Engine (rembg)
-    participant FF as FFmpeg
-    
-    User->>Flask: 動画アップロード & モデル選択
-    Flask->>User: ジョブID発行
-    
-    rect rgb(240, 240, 240)
-    Note over Flask, FF: 非同期処理開始
-    Flask->>FF: 動画から連番画像を抽出
-    loop 全フレーム
-        Flask->>AI: 背景除去リクエスト (GPU)
-        AI-->>Flask: 透過画像ファイル
-        Flask->>User: SSE進捗通知 (ETA計算)
-    end
-    Flask->>FF: 透過WebMをエンコード
-    Flask->>FF: 透過GIFをエンコード
-    end
-    
-    Flask-->>User: 完了通知 & ダウンロードリンク
-    User->>Flask: ファイルダウンロード
 ```
 
 ## 🚀 セットアップ
@@ -85,25 +73,24 @@ python -m venv venv
 
 # ライブラリのインストール
 pip install -r requirements.txt
-# GPU用のtorchを追加
-pip install torch --index-url https://download.pytorch.org/whl/cu118
+# GPU用のtorch (環境に合わせてバージョン調整)
+pip install torch --index-url https://download.pytorch.org/whl/cu124
 ```
 
-### 2. cuDNNの設定（GPU利用時）
+### 2. cuDNNの設定
 
-RTX 3060などのNVIDIA GPUを使用する場合、`cuDNN 9.x` の導入が必要です。
-
-1. [NVIDIA公式](https://developer.nvidia.com/cudnn)からcuDNNをダウンロード。
-2. `cudnn64_9.dll` 等のファイルを、venv内の `Lib\site-packages\onnxruntime\capi` またはシステムPATHの通った場所に配置してください。
+NVIDIA GPUをフル活用するために `cuDNN` の導入を推奨します。`app.py` 内で cuDNN のパスを自動追加する設定が含まれています。
 
 ### 3. 実行
 
 ```bash
-python app.py
+run_app.bat  # または python app.py
 ```
 ブラウザで [http://127.0.0.1:5000](http://127.0.0.1:5000) にアクセスします。
 
-## 📝 注意事項
+## 📝 最近の修正・改善点 (v2.0)
 
-- **メモリ消費**: BiRefNetモデルは非常に高精度ですが、GPU VRAMを大量に消費します。12GB以下のVRAM環境で実行する場合は、他のGPU使用アプリを閉じることを推奨します。
-- **処理時間**: 動画の長さやフレームレートに比例して処理時間がかかります。8秒の動画で、RTX 3060を使用した場合、BiRefNetでは約3分〜5分程度が目安です。
+- **透過GIFの完全対応**: 透過GIFの高画質化において、背景が白く塗りつぶされる不具合を修正。
+- **進捗追跡の統一**: GIFの高画質化も非同期処理（SSE）に統合し、進捗バーとキャンセル機能が有効化。
+- **UI同期の最適化**: 処理終了後、タブを切り替えるだけで自動的に前の作業をクリーンアップし、次の作業へ移れるように改善。
+- **OpenCVのアルファ保持**: 画像読み込み時に透過情報が破棄される `cv2.imread` の仕様を `IMREAD_UNCHANGED` で回避し、高精度な出力を実現。
